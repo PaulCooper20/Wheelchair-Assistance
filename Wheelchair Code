@@ -1,0 +1,285 @@
+/*
+ Toilet Sensor by:
+ Paul Cooper
+ Connor Dillon
+
+ 3/18/19
+*/
+#include <SoftTimers.h>
+#include <LiquidCrystal.h>
+
+// this constant won't change. It's the pin number of the sensor's output:
+const int pingPin = 7;// horizontal ping
+const int ecoPin = 6;// horizontal eco
+const int trigPin = 9;//vertical pin
+const int earPin = 8;// vertical eco
+const int horizontalBuz = A5; // horizontal buzzer pin
+const int verticalBuz = A4; // vertical buzzer pin
+int X;
+int adjustVert;
+int Horizontal_Distance;
+int Vertical_Distance;
+const int ledPin = 13;
+int ledState = LOW;
+int count = 0;
+int button = 23;
+int isButton;
+int bidet = 25;
+int redLight = 27;
+int greenLight = 29;
+int fan = 31 ;
+int blue = 33;
+int buttonState = 1;
+int buzzlevel;
+long duration, inches, cm;
+long duration2, inches2, cm2;
+bool pressed = false;
+bool hasRun = false;
+// initialize LCD pins
+const int rs = 12, en = 11, d4 = 5, d5 = 4, d6 = 3, d7 = 2;
+LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
+SoftTimer LEDtimer1;
+
+void setup() {
+  // initialize serial communication:
+  Serial.begin(9600);
+  // set up the LCD's number of columns and rows:
+  lcd.begin(16, 2);
+  // Print a message to the LCD.
+  lcd.setCursor(0, 0);
+  lcd.print("Press button to ");
+  lcd.setCursor(0, 1);
+  lcd.print("begin!");
+  pinMode(button, INPUT);
+  pinMode(bidet, OUTPUT);
+  pinMode(redLight, OUTPUT);
+  pinMode(greenLight,OUTPUT);
+  pinMode(fan, OUTPUT);
+  pinMode(blue, OUTPUT);
+  pinMode(pingPin, OUTPUT); 
+  pinMode(trigPin, OUTPUT);
+  pinMode(ledPin, OUTPUT);
+  LEDtimer1.setTimeOutTime(350);
+  buzzlevel = 1000;
+  buttonWait();// wait for user to press button to start
+  pressed = true;
+  
+
+  
+}
+  
+void loop() {
+if (hasRun == false) {  
+  ledBlinkOn();
+  echo1();
+  echo2();  
+/*The buzzer will increas the duration of the buzz as the wheelchair gets closer until
+ * the buzz is constant
+ */
+   if(inches < 17){
+    inchesLessThan19();
+  }
+  else if ((inches >= 17) && (inches < 20)){
+    showVert();  
+  }
+  else if(inches < 80){
+    inchesLessThanSixty();
+  }
+  else if(inches > 80) {
+    inchesGreaterThan60();
+   }
+
+/*The buzzer will sound when the sensor is over the front of the toilet until the
+ *wheelchair is raised to the proper height
+ */
+  digitalWrite(ledPin, LOW);
+  while((inches >= 17) && (inches < 20) && (inches2 < 12) && (hasRun == false)){
+    displayToLCD(Horizontal_Distance, Vertical_Distance); 
+    echo1();
+    echo2();
+  }
+ while (hasRun == true) {
+    lcd.setCursor(0, 0);
+    lcd.print("Function:MrClean" );
+    lcd.setCursor(0, 1);
+    lcd.print("Status: Complete" );
+  }
+ 
+  delay(100);
+
+
+
+
+}
+}
+// function for when the vertical sensor is over the toilet
+int displayToLCD(int hor,int vert){
+lcd.setCursor(0, 0);
+lcd.print("Hor D: ");
+lcd.print(0);
+lcd.print("in ");
+lcd.setCursor(0, 1);
+lcd.print("Vert D: ");
+lcd.print(adjustVert);
+lcd.print("in         ");
+//return;
+tone(verticalBuz, buzzlevel, 500);
+tone(horizontalBuz, buzzlevel, 500);
+ledState = HIGH;
+digitalWrite(ledPin, ledState);
+digitalWrite(blue,LOW);
+digitalWrite(redLight, HIGH);
+isButton = digitalRead(button);
+  if(isButton == 0 && pressed == true){
+    noTone(horizontalBuz);
+    noTone(verticalBuz);
+    mrClean();
+  }
+
+ 
+}
+
+// start stop button function
+void buttonWait() {
+  
+  while(pressed == false){
+    buttonState = digitalRead(button);
+    if (buttonState == 0) {
+      lcd.setCursor(0, 0);
+      lcd.print("                  ");
+      pressed = true;
+    }
+  }
+}
+
+//call the cleaning lady!
+void mrClean() {
+    lcd.setCursor(0, 0);
+    lcd.print("Don't Move.     ");
+    lcd.setCursor(0, 1);
+    lcd.print("Cleaning...     " );
+    digitalWrite(blue,LOW);
+    digitalWrite(redLight, HIGH);
+    digitalWrite(bidet, HIGH);
+    delay(5000);
+    lcd.setCursor(0, 1);
+    lcd.print("Drying...       " );
+    digitalWrite(bidet,LOW);
+    digitalWrite(fan,HIGH);
+    delay(5000);
+    digitalWrite(fan, LOW);
+    digitalWrite(redLight, LOW);
+    digitalWrite(greenLight, HIGH);
+    count = 1; 
+    buzzlevel = 0;
+    hasRun = true;
+    
+
+  }
+// turn on led when system starts and when in range
+void ledBlinkOn() {
+  if (LEDtimer1.hasTimedOut()){
+      digitalWrite(redLight, HIGH);
+      digitalWrite(blue, HIGH);
+      LEDtimer1.reset();
+  }
+  
+  //catch remaining time, to determine if 1 second has passed.
+  uint32_t remaining = LEDtimer1.getRemainingTime();
+
+  if (remaining <= (500/2)){
+     digitalWrite(redLight, LOW);
+     digitalWrite(blue, LOW);
+  }
+}
+//print nothing when greater than 80 inches
+void inchesGreaterThan60() {
+    lcd.setCursor(0, 0);
+    lcd.print("                ");
+    lcd.setCursor(0, 1);
+    lcd.print("                ");
+  }
+// display to screen when less than 80 inches
+void inchesLessThanSixty() {
+  Horizontal_Distance = inches-19; 
+  lcd.setCursor(0, 0);
+  lcd.print("Hor D: ");
+  lcd.print(Horizontal_Distance);
+  lcd.print(" in        "); 
+  X = 190 - (inches-19)*3;    
+  tone(horizontalBuz, 1000, X);
+  delay(100);
+}
+// let user know when they have gone to far
+void inchesLessThan19() {
+  Horizontal_Distance = inches-19; 
+  lcd.setCursor(0, 0);
+  lcd.print("Hor D: ");
+  lcd.print("Too Close");
+  X = 200 - (inches-19)*4;    
+  tone(horizontalBuz, 1000, X);
+  delay(100);
+}
+//show vertical distgance when over toilet
+void showVert() {
+  lcd.setCursor(0, 0);
+  lcd.print("Hor D: 0        ");
+  Vertical_Distance = inches2;
+  lcd.setCursor(0, 1);
+  lcd.print("Vert D: ");
+  adjustVert = 21-Vertical_Distance;
+  lcd.print(adjustVert);
+  lcd.print(" in "); 
+  noTone(horizontalBuz);
+  tone(verticalBuz, 900, X);
+  delay(100);
+ }
+//ping sensor for horizontal distance
+void echo1(){
+   // The PING))) is triggered by a HIGH pulse of 2 or more microseconds.
+  // Give a short LOW pulse beforehand to ensure a clean HIGH pulse:
+  digitalWrite(pingPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(pingPin, HIGH);
+  delayMicroseconds(5);
+  digitalWrite(pingPin, LOW);
+  // a HIGH pulse whose duration is the time (in microseconds) from the sending of the ping
+  // to the reception of its echo off of an object.
+  pinMode(ecoPin, INPUT);
+  duration = pulseIn(ecoPin, HIGH);
+  // convert the time into a distance
+  inches = microsecondsToInches(duration);
+  cm = microsecondsToCentimeters(duration);
+  
+  
+}
+//ping sensor for vertical distance
+void echo2() {
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(5);
+  digitalWrite(trigPin, LOW);
+  pinMode(earPin, INPUT);
+  duration2 = pulseIn(earPin, HIGH);
+  // convert the time into a distance
+  inches2 = microsecondsToInches(duration2);
+  cm = microsecondsToCentimeters(duration2);
+  } 
+
+   
+long microsecondsToInches(long microseconds) {
+  // According to Parallax's datasheet for the PING))), there are 73.746
+  // microseconds per inch (i.e. sound travels at 1130 feet per second).
+  // This gives the distance travelled by the ping, outbound and return,
+  // so we divide by 2 to get the distance of the obstacle.
+  // See: http://www.parallax.com/dl/docs/prod/acc/28015-PING-v1.3.pdf
+  return microseconds / 74 / 2;
+}
+
+long microsecondsToCentimeters(long microseconds) {
+  // The speed of sound is 340 m/s or 29 microseconds per centimeter.
+  // The ping travels out and back, so to find the distance of the object we
+  // take half of the distance travelled.
+  return microseconds / 29 / 2;
+}
