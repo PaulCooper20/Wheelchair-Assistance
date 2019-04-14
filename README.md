@@ -33,3 +33,5 @@ will shoot a stream of water of a duration of 5 seconds and then turn off. After
 be sent to a second relay powered by the same 9-volt battery that will then power a brushed DC fan for a duration of 5 
 seconds to dry the user. After the fan turns off the solid red light that is mounted on the side of the wheelchair will 
 then turn green notifying the user that the entire process is complete, and they may now pull away from the toilet.
+
+Code is written in C. 
